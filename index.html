@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Playback - Spotify Auth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <p>Connecting to Spotify...</p>
+  <script>
+    var hash = window.location.hash.substring(1);
+    if (hash) {
+      var params = {};
+      hash.split('&').forEach(function(part) {
+        var kv = part.split('=');
+        params[kv[0]] = decodeURIComponent(kv[1]);
+      });
+      if (params.access_token) {
+        var result = JSON.stringify({
+          token: params.access_token,
+          expiresIn: parseInt(params.expires_in, 10) || 3600
+        });
+        document.body.innerHTML = '<p>Success! Returning to Pebble...</p>';
+        window.location = 'pebblejs://close#' + encodeURIComponent(result);
+      } else if (params.error) {
+        document.body.innerHTML = '<p>Auth error: ' + params.error + '</p>';
+      }
+    } else {
+      document.body.innerHTML = '<p>No token received. Please try again from the Pebble app.</p>';
+    }
+  </script>
+</body>
+</html>
