@@ -17,8 +17,13 @@
   <p id="status">Connecting...</p>
   <div id="action"></div>
   <script>
+    var CLIENT_ID = '0b9be8bdf4ae48d29bde7e52220d5b5e';
+    var REDIRECT_URI = 'https://alex523ap.github.io/playback_config/';
+    var SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private user-library-read user-follow-read';
+
     var hash = window.location.hash.substring(1);
-    if (hash) {
+    if (hash && hash.indexOf('access_token') !== -1) {
+      // Returning from Spotify with token
       var params = {};
       var parts = hash.split('&');
       for (var i = 0; i < parts.length; i++) {
@@ -35,11 +40,21 @@
         document.getElementById('status').textContent = 'Logged in to Spotify!';
         document.getElementById('action').innerHTML =
           '<a class="btn" href="' + closeUrl + '">Return to Pebble</a>';
-      } else if (params.error) {
-        document.getElementById('status').textContent = 'Error: ' + params.error;
       }
+    } else if (hash && hash.indexOf('error') !== -1) {
+      document.getElementById('status').textContent = 'Auth error. Please try again.';
     } else {
-      document.getElementById('status').textContent = 'No token received. Open from Pebble app settings.';
+      // No token yet — show login button that goes to Spotify
+      var authUrl = 'https://accounts.spotify.com/authorize' +
+        '?client_id=' + encodeURIComponent(CLIENT_ID) +
+        '&response_type=token' +
+        '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) +
+        '&scope=' + encodeURIComponent(SCOPES) +
+        '&show_dialog=true';
+
+      document.getElementById('status').textContent = 'Connect your Spotify account';
+      document.getElementById('action').innerHTML =
+        '<a class="btn" href="' + authUrl + '">Log in with Spotify</a>';
     }
   </script>
 </body>
