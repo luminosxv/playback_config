@@ -10,16 +10,46 @@
             padding: 16px 32px; font-size: 18px; border-radius: 24px; margin-top: 20px; border: none; cursor: pointer; }
     p { font-size: 16px; }
     .debug { font-size: 10px; color: #666; word-break: break-all; margin-top: 30px; }
+    input { width: 100%; padding: 12px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; margin-top: 10px; }
+    .settings { margin-bottom: 30px; padding: 20px; border: 1px solid #333; border-radius: 8px; text-align: left; }
+    .settings label { font-size: 12px; color: #aaa; }
   </style>
 </head>
 <body>
-  <p id="status">Loading...</p>
+  <div class="settings">
+    <label>Spotify Client ID (Optional for Developers)</label>
+    <input type="text" id="clientIdInput" placeholder="Leave blank for default app">
+    <p style="font-size: 12px; color: #666; margin-top: 8px;">
+      To bypass the 25-user limit, enter your own Client ID from the Spotify Developer Dashboard.
+    </p>
+  </div>
+
+  <p id="status">Connect your Spotify account</p>
   <div id="action"></div>
   <p id="debug" class="debug"></p>
+
   <script>
-    var CLIENT_ID = '0b9be8bdf4ae48d29bde7e52220d5b5e';
+    var DEFAULT_CLIENT_ID = '0b9be8bdf4ae48d29bde7e52220d5b5e';
     var REDIRECT_URI = 'https://alex523ap.github.io/playback_config/';
     var SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private user-library-read user-follow-read';
+
+    // --- Parse query params ---
+    function getQueryParam(name) {
+      var params = window.location.search.substring(1).split('&');
+      for (var i = 0; i < params.length; i++) {
+        var kv = params[i].split('=');
+        if (kv[0] === name) return decodeURIComponent(kv[1]);
+      }
+      return null;
+    }
+
+    var clientIdInput = document.getElementById('clientIdInput');
+    clientIdInput.value = getQueryParam('client_id') || localStorage.getItem('custom_client_id') || '';
+    clientIdInput.onchange = function() { localStorage.setItem('custom_client_id', clientIdInput.value.trim()); };
+
+    function getActiveClientId() {
+      return clientIdInput.value.trim() || DEFAULT_CLIENT_ID;
+    }
 
     // --- PKCE helpers ---
     function generateRandom(length) {
@@ -41,24 +71,11 @@
       });
     }
 
-    // --- Parse query params ---
-    function getQueryParam(name) {
-      var params = window.location.search.substring(1).split('&');
-      for (var i = 0; i < params.length; i++) {
-        var kv = params[i].split('=');
-        if (kv[0] === name) return decodeURIComponent(kv[1]);
-      }
-      return null;
-    }
-
     var debug = document.getElementById('debug');
-    debug.textContent = 'URL: ' + window.location.href;
-
     var code = getQueryParam('code');
     var error = getQueryParam('error');
 
     if (code) {
-      // Step 2: Exchange code for token
       document.getElementById('status').textContent = 'Getting token...';
       var verifier = sessionStorage.getItem('pkce_verifier');
       if (!verifier) {
@@ -67,50 +84,42 @@
         var body = 'grant_type=authorization_code' +
           '&code=' + encodeURIComponent(code) +
           '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) +
-          '&client_id=' + encodeURIComponent(CLIENT_ID) +
+          '&client_id=' + encodeURIComponent(getActiveClientId()) +
           '&code_verifier=' + encodeURIComponent(verifier);
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', 'https://accounts.spotify.com/api/token', true);
         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
         xhr.onload = function() {
-          debug.textContent = 'Token response: ' + xhr.status;
           if (xhr.status === 200) {
             var data = JSON.parse(xhr.responseText);
             var result = JSON.stringify({
               token: data.access_token,
-              expiresIn: data.expires_in || 3600
+              refreshToken: data.refresh_token,
+              expiresIn: data.expires_in || 3600,
+              clientId: getActiveClientId()
             });
             var closeUrl = 'pebblejs://close#' + encodeURIComponent(result);
             document.getElementById('status').textContent = 'Logged in to Spotify!';
-            document.getElementById('action').innerHTML =
-              '<a class="btn" href="' + closeUrl + '">Return to Pebble</a>';
+            document.getElementById('action').innerHTML = '<a class="btn" href="' + closeUrl + '">Return to Pebble</a>';
           } else {
             document.getElementById('status').textContent = 'Token error: ' + xhr.status;
             debug.textContent = xhr.responseText;
           }
         };
-        xhr.onerror = function() {
-          document.getElementById('status').textContent = 'Network error getting token';
-        };
+        xhr.onerror = function() { document.getElementById('status').textContent = 'Network error getting token'; };
         xhr.send(body);
       }
     } else if (error) {
       document.getElementById('status').textContent = 'Auth error: ' + error;
     } else {
-      // Step 1: Start auth - generate PKCE and redirect to Spotify
-      document.getElementById('status').textContent = 'Connect your Spotify account';
-      document.getElementById('action').innerHTML =
-        '<button class="btn" id="loginBtn">Log in with Spotify</button>';
-
+      document.getElementById('action').innerHTML = '<button class="btn" id="loginBtn">Log in with Spotify</button>';
       document.getElementById('loginBtn').onclick = function() {
         var verifier = generateRandom(64);
         sessionStorage.setItem('pkce_verifier', verifier);
-        document.getElementById('status').textContent = 'Redirecting to Spotify...';
-
         sha256(verifier).then(function(challenge) {
           var authUrl = 'https://accounts.spotify.com/authorize' +
-            '?client_id=' + encodeURIComponent(CLIENT_ID) +
+            '?client_id=' + encodeURIComponent(getActiveClientId()) +
             '&response_type=code' +
             '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) +
             '&scope=' + encodeURIComponent(SCOPES) +
