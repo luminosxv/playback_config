@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; padding: 40px 20px; }
-    button { background: #1DB954; color: #fff; border: none; padding: 14px 28px; font-size: 16px; border-radius: 24px; margin-top: 20px; }
+    a.btn { display: inline-block; background: #1DB954; color: #fff; text-decoration: none;
+            padding: 16px 32px; font-size: 18px; border-radius: 24px; margin-top: 20px; }
+    p { font-size: 16px; }
   </style>
 </head>
 <body>
-  <p id="status">Connecting to Spotify...</p>
+  <p id="status">Connecting...</p>
+  <div id="action"></div>
   <script>
     var hash = window.location.hash.substring(1);
     if (hash) {
@@ -26,25 +29,14 @@
         });
         var closeUrl = 'pebblejs://close#' + encodeURIComponent(result);
 
-        document.getElementById('status').textContent = 'Logged in! Returning to Pebble...';
-
-        // Delay slightly to let the page settle before triggering pebblejs://close
-        setTimeout(function() {
-          document.location.href = closeUrl;
-        }, 300);
-
-        // Fallback button if auto-close doesn't work
-        setTimeout(function() {
-          var btn = document.createElement('button');
-          btn.textContent = 'Tap here to return to Pebble';
-          btn.onclick = function() { document.location.href = closeUrl; };
-          document.body.appendChild(btn);
-        }, 2000);
+        document.getElementById('status').textContent = 'Logged in to Spotify!';
+        document.getElementById('action').innerHTML =
+          '<a class="btn" href="' + closeUrl + '">Return to Pebble</a>';
       } else if (params.error) {
-        document.getElementById('status').textContent = 'Auth error: ' + params.error;
+        document.getElementById('status').textContent = 'Error: ' + params.error;
       }
     } else {
-      document.getElementById('status').textContent = 'No token received. Please try again from the Pebble app.';
+      document.getElementById('status').textContent = 'No token received. Open from Pebble app settings.';
     }
   </script>
 </body>
