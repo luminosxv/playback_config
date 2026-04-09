@@ -116,8 +116,7 @@
       document.getElementById('action').innerHTML = '<button class="btn" id="loginBtn">Log in with Spotify</button>';
       document.getElementById('loginBtn').onclick = function() {
         if (!getActiveClientId()) {                                                 
-    document.getElementById('status').textContent = 'Enter your Client ID       
-  first';                                                                 
+    document.getElementById('status').textContent = 'Enter your Client ID first';                                                                 
     return;                                                                     
         }        
         var verifier = generateRandom(64);
